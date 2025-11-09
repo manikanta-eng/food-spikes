@@ -1,12 +1,119 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <h1>hello</h1>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Simple Zomato-Like App</title>
+<style>
+:root{--bg:#f7f7fb;--card:#fff;--accent:#ff6b6b;--muted:#666}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#222}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#fff;border-bottom:1px solid #eee}
+header h1{margin:0;font-size:20px;color:var(--accent);cursor:pointer}
+header .right{display:flex;gap:8px;align-items:center}
+input#searchInput{padding:8px;border:1px solid #ddd;border-radius:6px;width:220px}
+.btn{padding:8px 10px;border-radius:6px;border:none;background:#ddd;cursor:pointer}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.danger{background:#e74c3c;color:#fff}
+main{padding:18px;max-width:1000px;margin:18px auto}
+h2{margin:8px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.card{background:var(--card);padding:12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);border:1px solid #eee}
+.card h3{margin:0 0 6px}
+.card p{margin:6px 0;color:var(--muted);font-size:14px}
+.small{font-size:13px;color:var(--muted)}
+.hidden{display:none}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;padding:20px}
+.cartPanel{width:100%;max-width:600px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.12)}
+.cartItem{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #eee}
+.qtyCtl{display:flex;gap:6px;align-items:center}
+.qtyCtl button{width:28px;height:28px;border-radius:6px}
+.toast{position:fixed;right:20px;bottom:20px;background:#111;color:#fff;padding:12px 16px;border-radius:8px}
+footer{padding:12px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid #eee;background:#fff;margin-top:24px}
+@media (max-width:600px){
+  header .right{flex-direction:column;align-items:flex-end;gap:6px}
+  input#searchInput{width:160px}
+}
+</style>
 </head>
 <body>
-    
+<header>
+  <h1>FoodFinder</h1>
+  <div class="right">
+    <input id="searchInput" placeholder="Search restaurants or cuisine..."/>
+    <button id="searchBtn" class="btn">Search</button>
+    <button id="viewCartBtn" class="btn">View Cart (<span id="cartCount">0</span>)</button>
+  </div>
+</header>
+
+<main>
+  <section id="restaurantsSection">
+    <h2>Restaurants</h2>
+    <div id="restaurantsList" class="grid"></div>
+  </section>
+
+  <section id="menuSection" class="hidden">
+    <button id="backBtn" class="btn">← Back to Restaurants</button>
+    <h2 id="menuTitle">Menu</h2>
+    <div id="menuList" class="grid"></div>
+  </section>
+
+  <section id="cartSection" class="overlay hidden">
+    <div class="cartPanel">
+      <h2>Your Cart</h2>
+      <div id="cartItems"></div>
+      <div class="cartFooter">
+        <div><b>Total: ₹<span id="cartTotal">0</span></b></div>
+        <div>
+          <button id="clearCartBtn" class="btn danger">Clear</button>
+          <button id="placeOrderBtn" class="btn primary">Place Order</button>
+          <button id="closeCartBtn" class="btn">Close</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="messageSection" class="toast hidden"></section>
+</main>
+
+<footer>
+  <small>Simple Zomato-like app • Works offline • Uses localStorage</small>
+</footer>
+
+<script>
+const sampleDataKey='ff_sample_data_v1',cartKey='ff_cart_v1';
+const sampleRestaurants=[
+  {id:'r1',name:'Spice Villa',location:'Hyderabad',cuisine:['Indian','Chinese'],rating:4.2,menu:[
+    {id:'m1',name:'Butter Chicken',price:250,desc:'Creamy tomato gravy'},
+    {id:'m2',name:'Veg Biryani',price:150,desc:'Hyderabadi style'}]},
+  {id:'r2',name:'Green Bowl',location:'Bengaluru',cuisine:['Healthy','Salads'],rating:4.5,menu:[
+    {id:'m3',name:'Quinoa Salad',price:200,desc:'Fresh veggies & quinoa'},
+    {id:'m4',name:'Grilled Paneer',price:220,desc:'Smoky paneer'}]},
+  {id:'r3',name:'Pizza Planet',location:'Mumbai',cuisine:['Italian','Fast Food'],rating:4.0,menu:[
+    {id:'m5',name:'Margherita',price:180,desc:'Classic cheese pizza'},
+    {id:'m6',name:'Pepperoni',price:260,desc:'Spicy pepperoni'}]}
+];
+const $=s=>document.querySelector(s),$all=s=>Array.from(document.querySelectorAll(s));
+const showToast=(t,d=2000)=>{const m=$('#messageSection');m.textContent=t;m.classList.remove('hidden');setTimeout(()=>m.classList.add('hidden'),d)};
+function ensureSampleData(){if(!localStorage.getItem(sampleDataKey))localStorage.setItem(sampleDataKey,JSON.stringify(sampleRestaurants))}
+function readRestaurants(){ensureSampleData();return JSON.parse(localStorage.getItem(sampleDataKey)||'[]')}
+function saveRestaurants(a){localStorage.setItem(sampleDataKey,JSON.stringify(a))}
+function readCart(){return JSON.parse(localStorage.getItem(cartKey)||'[]')}
+function saveCart(c){localStorage.setItem(cartKey,JSON.stringify(c));updateCartCount()}
+function renderRestaurants(list){const d=$('#restaurantsList');d.innerHTML='';if(!list.length)return d.innerHTML='<div class="small">No restaurants found.</div>';list.forEach(r=>{const e=document.createElement('div');e.className='card';e.innerHTML=<h3>${r.name}</h3><p class="small">${r.location} • ${r.cuisine.join(', ')}</p><p class="small">Rating: ${r.rating}</p><div style="margin-top:8px"><button class="btn" data-rid="${r.id}">View Menu</button></div>;d.appendChild(e)});$all('[data-rid]').forEach(b=>b.onclick=()=>openMenu(b.dataset.rid))}
+function renderMenu(r){$('#menuTitle').textContent='Menu — '+r.name;const d=$('#menuList');d.innerHTML='';r.menu.forEach(i=>{const e=document.createElement('div');e.className='card';e.innerHTML=<h3>${i.name}</h3><p class="small">₹${i.price}</p><p class="small">${i.desc}</p><div style="margin-top:8px"><button class="btn" data-mid="${i.id}">Add to Cart</button></div>;d.appendChild(e)});$all('[data-mid]').forEach(b=>b.onclick=()=>{const it=r.menu.find(x=>x.id===b.dataset.mid);if(it)addToCart(it)})}
+function updateCartCount(){const c=readCart();$('#cartCount').textContent=c.reduce((s,i)=>s+i.qty,0)}
+function openMenu(id){const r=readRestaurants().find(x=>x.id===id);if(!r)return showToast('Restaurant not found');renderMenu(r);$('#restaurantsSection').classList.add('hidden');$('#menuSection').classList.remove('hidden')}
+function backToRestaurants(){$('#menuSection').classList.add('hidden');$('#restaurantsSection').classList.remove('hidden')}
+function addToCart(it){const c=readCart();const f=c.find(x=>x.menuId===it.id);if(f)f.qty+=1;else c.push({menuId:it.id,name:it.name,price:it.price,qty:1});saveCart(c);showToast('Added to cart')}
+function openCartPanel(){const c=readCart();const w=$('#cartItems');w.innerHTML='';if(!c.length)w.innerHTML='<div class="small">Cart is empty.</div>';c.forEach(ci=>{const l=document.createElement('div');l.className='cartItem';l.innerHTML=<div><b>${ci.name}</b><div class="small">₹${ci.price} each</div></div><div class="qtyCtl"><button class="btn" data-op="-1" data-id="${ci.menuId}">-</button><div>${ci.qty}</div><button class="btn" data-op="1" data-id="${ci.menuId}">+</button><button class="btn danger" data-remove="${ci.menuId}">Remove</button></div>;w.appendChild(l)});$all('[data-op]').forEach(b=>b.onclick=()=>{const id=b.dataset.id,op=Number(b.dataset.op);const c=readCart();const it=c.find(x=>x.menuId===id);if(!it)return;it.qty=Math.max(1,it.qty+op);saveCart(c);openCartPanel()});$all('[data-remove]').forEach(b=>b.onclick=()=>{let c=readCart().filter(x=>x.menuId!==b.dataset.remove);saveCart(c);openCartPanel()});$('#cartTotal').textContent=c.reduce((s,i)=>s+i.price*i.qty,0);$('#cartSection').classList.remove('hidden')}
+function closeCartPanel(){$('#cartSection').classList.add('hidden')}
+function clearCart(){localStorage.removeItem(cartKey);updateCartCount();openCartPanel();showToast('Cart cleared')}
+function placeOrder(){const c=readCart();if(!c.length)return showToast('Cart is empty');const k='ff_orders_v1',o=JSON.parse(localStorage.getItem(k)||'[]'),t=c.reduce((s,i)=>s+i.price*i.qty,0);const n={id:'o'+Date.now(),items:c,total:t,createdAt:new Date().toISOString()};o.unshift(n);localStorage.setItem(k,JSON.stringify(o));localStorage.removeItem(cartKey);updateCartCount();closeCartPanel();showToast('Order placed! ID: '+n.id)}
+function handleSearch(){const q=$('#searchInput').value.trim().toLowerCase(),a=readRestaurants();if(!q)return renderRestaurants(a);const f=a.filter(r=>r.name.toLowerCase().includes(q)||r.cuisine.some(c=>c.toLowerCase().includes(q)));renderRestaurants(f)}
+function quickAddRestaurant(){const name=prompt('Restaurant name');if(!name)return;const loc=prompt('Location')||'Unknown';const cui=(prompt('Cuisine (comma separated)')||'').split(',').map(x=>x.trim()).filter(Boolean);const list=readRestaurants();list.push({id:'r'+Date.now(),name,location:loc,cuisine:cui,rating:4.0,menu:[]});saveRestaurants(list);renderRestaurants(list);showToast('Restaurant added')}
+function init(){ensureSampleData();renderRestaurants(readRestaurants());updateCartCount();$('#searchBtn').onclick=handleSearch;$('#searchInput').onkeydown=e=>e.key==='Enter'&&handleSearch();$('#viewCartBtn').onclick=openCartPanel;$('#closeCartBtn').onclick=closeCartPanel;$('#clearCartBtn').onclick=()=>confirm('Clear cart?')&&clearCart();$('#placeOrderBtn').onclick=()=>confirm('Place order now?')&&placeOrder();$('#backBtn').onclick=backToRestaurants;document.querySelector('h1').ondblclick=quickAddRestaurant}
+init();
+</script>
 </body>
 </html>
